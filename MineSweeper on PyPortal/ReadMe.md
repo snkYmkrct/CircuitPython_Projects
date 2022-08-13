@@ -1,4 +1,4 @@
-## Minesweeper game on Adafruit's Pyportal 
+## Minesweeper 💣 game on Adafruit's Pyportal 
 
 Device: [Adafruit PyPortal Titano](https://www.adafruit.com/product/4444)
 
