@@ -1,6 +1,8 @@
+# Text implementation of the game, working on PC
+
 import random 
 import re
-from board import Board
+from minesweeper_board import Board
 
 def play(dim_size = 10, num_bombs = 10):
 
