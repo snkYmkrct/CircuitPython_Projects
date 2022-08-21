@@ -17,7 +17,7 @@ seed(int(time.monotonic()))
 
 # ==================== Game and UI constants ====================
 
-DEBUGENABLED = True
+DEBUGENABLED = False
 
 BLACK = 0x000000
 WHITE = 0xFFFFFF
@@ -25,7 +25,7 @@ LAVENDER = 0xE5D9FF
 PINK = 0xFF00FF
 RED = 0xFF0000
 
-THEMECOLORS = 3 # number of colors in the game theme palette
+THEMECOLORS = 5 # number of colors in the game theme palette
 INGROUPXOFFSET = 40  # x position of the play board inside the dysplayed group
 INGROUPYOFFSET = 60  # y position of the play board inside the dysplayed group
 HTILES = 20  # number of tiles on the horizontal
@@ -70,10 +70,12 @@ theme_palette = displayio.Palette(THEMECOLORS)
 theme_palette[0] = LAVENDER
 theme_palette[1] = PINK
 theme_palette[2] = RED
+theme_palette[3] = WHITE
+theme_palette[4] = BLACK
 
-# bitmap that can use the colors in the theme palette
+# Bitmap that can use the colors in the theme palette
 background_color = displayio.Bitmap(display.width, display.height, THEMECOLORS)
-# single tile grid to show the background color
+# Single tile grid to show the background color
 background = displayio.TileGrid(background_color, pixel_shader=theme_palette)
 
 # Creating the UI buttons
@@ -99,13 +101,13 @@ bomb_number_text_out = Label(font=font, x=170, y=28, text="Bombs left:", color=B
 game_board_frame = RoundRect(INGROUPXOFFSET-8, INGROUPYOFFSET-8,
                             HTILES*TILESIZE+16, VTILES*TILESIZE+16, 8, fill=BLACK, outline=PINK, stroke=3)
 
-# load the .bmp image containing the icons for the game
-# it's a 80x80 pixels image, with icons arranged in a 4x4 grid of squares
+# Loading the .bmp image containing the icons for the game
+# It's a 80x80 pixels image, with icons arranged in a 4x4 grid of squares
 game_sprite_sheet, game_palette = adafruit_imageload.load("/MineSweeperSpriteSheet.bmp",
                                           bitmap=displayio.Bitmap,
                                           palette=displayio.Palette)
 
-# Create a game board as a tile grid
+# Creating a game board as a tile grid
 game_board = displayio.TileGrid(game_sprite_sheet, pixel_shader=game_palette,
                             width = HTILES,   # number of tiles on the horizontal
                             height = VTILES,  # number of tiles on the vertical
@@ -115,6 +117,11 @@ game_board = displayio.TileGrid(game_sprite_sheet, pixel_shader=game_palette,
                             x = INGROUPXOFFSET,  # position of the game board inside the parent group
                             y = INGROUPYOFFSET)
 
+# Game Over overlay - hidden by default
+game_over_frame = RoundRect(127, 137, 235, 45, 8, fill=WHITE, outline=BLACK, stroke=3)
+game_over_frame.hidden = True
+game_over_text = Label(font=font, x=140, y=160, text="Congratulations! You win!", color=PINK, background_color=None)
+game_over_text.hidden = True
 
 # dot to test the touch screen
 if DEBUGENABLED:
@@ -124,10 +131,10 @@ if DEBUGENABLED:
                                     y=-10)  # won't get shown until the location moves onto the display
 
 
-# create a group to display on the screen
+# Creating a group to display the UI on the screen
 minesweeper_group = displayio.Group()
 
-# add all the defined elements in the order they should appear
+# Adding all the defined elements in the order they should appear
 minesweeper_group.append(background)
 minesweeper_group.append(game_board_frame)
 minesweeper_group.append(game_board)
@@ -136,14 +143,17 @@ minesweeper_group.append(main_menu_button)
 minesweeper_group.append(bomb_number_box)
 minesweeper_group.append(bomb_number_text_in)
 minesweeper_group.append(bomb_number_text_out)
+minesweeper_group.append(game_over_frame)
+minesweeper_group.append(game_over_text)
 if DEBUGENABLED:
     minesweeper_group.append(test_circle)
 
 display.show(minesweeper_group)
 
 
-# ==================== Defining the game methods ====================
+# ==================== Defining the game functions ====================
 
+# Only for debugging purposes - printing the generated game board, with bomb locations
 def print_bomb_list():
     for y in range(VTILES):
         bomb_string = ""
@@ -156,8 +166,9 @@ def print_bomb_list():
         print(bomb_string)
     gc.collect()
 
+# Iterating through all 8 positions around current one (with out of bounds check)
+# Calculating the number of bombs visible from current location
 def get_number_bomb_neighbours(param_x, param_y):
-    # Iterating through all 8 positions around current one (with out of bounds check)
     num_neighbouring_bombs = 0
     for x in range( max(0, param_x-1), min(HTILES-1, param_x+1) + 1 ):
         for y in range( max(0, param_y-1), min(VTILES-1, param_y+1) + 1 ):
@@ -168,15 +179,21 @@ def get_number_bomb_neighbours(param_x, param_y):
 
     return num_neighbouring_bombs
 
-
+# Starting a new game, initializing all default values, and generating a new game board
+# This function should be run when the file is first loaded + when "New Game" button is pressed
 def start_new_game():
-    # Is the game in progress, False means either win or loss
+    # Hide the game board overlay
+    game_over_frame.hidden = True
+    game_over_text.hidden = True
+
+    # Is the game in progress, False can mean either win or loss
     global is_game_running
     is_game_running = True
 
-    # Number of bombs marked as flagged on the game board, maximum NUMBEROFBOMBS
+    # Number of bombs marked as flagged on the game board
     global flagged_bombs
     flagged_bombs = 0
+    bomb_number_text_in.text = '{:2d}'.format(NUMBEROFBOMBS - flagged_bombs)
 
     # Filling the UI game board matrix with the default tiles
     for x in range(HTILES):
@@ -221,6 +238,7 @@ def start_new_game():
 
     gc.collect()
 
+# Function called to dig at the selected location - determined by the touch screen reading
 def dig_board(param_x, param_y):
     global flagged_bombs
     # Adding current location to the set, marking it as already explored
@@ -238,6 +256,7 @@ def dig_board(param_x, param_y):
         return True
 
     # If location is 0, dig all unexplored neighbours until reaching location next to a bomb
+    # Exploration continues on all other locations with values of 0 to 8, that can be reached from current position
     dig_stack = [(param_x, param_y)]
     while dig_stack:
         (pop_x, pop_y) = dig_stack.pop()
@@ -248,35 +267,53 @@ def dig_board(param_x, param_y):
                 if bomb_list[x][y] == BOMB:  # bomb in unexplored location, ignore
                     continue
 
+                # Add location to the set of explored ones
                 locations_dug.add((x, y))
+
+                # If exploring reveals a tile falsely flagged, update de flagged tiles counter
                 if game_board[x, y] == FLAG:
                     flagged_bombs -= 1
                     bomb_number_text_in.text = '{:2d}'.format(NUMBEROFBOMBS-flagged_bombs)
+
+                # Show the discovered tile on the screen
                 game_board[x, y] = bomb_list[x][y]
 
                 if bomb_list[x][y] > 0:
-                    # location neighbouring bombs, show on board, and ignore after adding to explored locations
+                    # Location neighbouring bombs, show on board, and ignore after adding to explored locations
                     continue
 
-                # location is 0, no neighbouring bombs, continue exploration
+                # Location is 0, has no neighbouring bombs, continue exploration
                 dig_stack.append((x, y))
-
     gc.collect()
     return True
 
 def game_over(param_x, param_y, win):
     if win == True:
-        pass
-    else:
-        pass
+        # Game is won, show win overlay
+        game_over_text.color = PINK
+        game_over_text.text="Congratulations! You win!!"
 
+    else:
+        # Game is lost, show the board, and the exploded bomb, then the lose overlay
+        for x in range(HTILES):
+            for y in range(VTILES):
+                game_board[x,y] = bomb_list[x][y]
+        game_board[param_x, param_y] = EXPLODED
+        game_over_text.color = RED
+        game_over_text.text="   GAME OVER!  You lose!  "
+
+    game_over_frame.hidden = False
+    game_over_text.hidden = False
+
+
+# ==================== Main Loop ====================
 
 # Starting new game on UI load
 start_new_game()
 
 while True:
     point = touch_screen.touch_point
-    time.sleep(.2)
+    time.sleep(.2) # debounce
 
     if point is not None:
         if DEBUGENABLED:
@@ -285,6 +322,7 @@ while True:
             test_circle.x = point[0]
             test_circle.y = point[1]
 
+        # If New Game button is pressed, start a new game
         if new_game_button.contains(point):
             if DEBUGENABLED:
                 print ("new game button")
@@ -292,6 +330,7 @@ while True:
             start_new_game()
             new_game_button.selected = False
 
+        # If Main Menu button is pressed, the code running is changed to code.py
         if main_menu_button.contains(point):
             if DEBUGENABLED:
                 print ("main menu button")
@@ -305,15 +344,19 @@ while True:
             (point[1] in range( INGROUPYOFFSET, INGROUPYOFFSET + VTILES*TILESIZE)):
         # if game_board.contains(point):  # use this after CP 8.0
 
+            # If the game is not running, ignore touch points on the game board
             if is_game_running:
+                # Calculating position on the board
                 xx = (point[0] - INGROUPXOFFSET) // TILESIZE
                 yy = (point[1] - INGROUPYOFFSET) // TILESIZE
 
                 if game_board[xx,yy] == NEWTILE:
+                    # When first touched, the tile is marked as flagged
                     flagged_bombs += 1
                     game_board[xx,yy] = FLAG
                     bomb_number_text_in.text = '{:2d}'.format(NUMBEROFBOMBS-flagged_bombs)
                 elif game_board[xx,yy] == FLAG:
+                    # Second tile touch triggers the dig action
                     flagged_bombs -= 1
                     bomb_number_text_in.text = '{:2d}'.format(NUMBEROFBOMBS-flagged_bombs)
                     is_game_running = dig_board(xx, yy)
