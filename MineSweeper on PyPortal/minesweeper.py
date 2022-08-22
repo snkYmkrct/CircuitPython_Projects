@@ -26,8 +26,8 @@ PINK = 0xFF00FF
 RED = 0xFF0000
 
 THEMECOLORS = 5 # number of colors in the game theme palette
-INGROUPXOFFSET = 40  # x position of the play board inside the dysplayed group
-INGROUPYOFFSET = 60  # y position of the play board inside the dysplayed group
+INGROUPXOFFSET = 40  # x position of the play board inside the display group
+INGROUPYOFFSET = 60  # y position of the play board inside the display group
 HTILES = 20  # number of tiles on the horizontal
 VTILES = 12  # number of tiles on the vertical
 TILESIZE = 20 # size of the tile square
@@ -46,24 +46,24 @@ NEWTILE = 9
 EXPLODED = 10
 FLAG = 11
 NOTABOMB = 12
-MAYBE = 13
+QUESTION = 13
 BOMB = 14
 
+# Total number of bombs in the game
 NUMBEROFBOMBS = 30
 
 
 # ==================== Creating the Minesweeper Game UI ====================
 
-# using the built in PyPortal Titano screen, with no rotation
+# Using the built in PyPortal Titano screen, with no rotation
 display = board.DISPLAY
 display.rotation = 0
 
-# enabling the touch screen, Titano screen resolution
+# Enabling the touch screen, Titano screen resolution
 touch_screen = adafruit_touchscreen.Touchscreen(board.TOUCH_XL, board.TOUCH_XR,
                                       board.TOUCH_YD, board.TOUCH_YU,
                                       calibration=((7391, 60392), (8696, 56799)),
                                       size=(480, 320))
-
 
 # Creating a theme palette for the game
 theme_palette = displayio.Palette(THEMECOLORS)
@@ -78,9 +78,10 @@ background_color = displayio.Bitmap(display.width, display.height, THEMECOLORS)
 # Single tile grid to show the background color
 background = displayio.TileGrid(background_color, pixel_shader=theme_palette)
 
-# Creating the UI buttons
+# Loading the font used in the UI texts
 font = bitmap_font.load_font("/fonts/SairaStencilOne-Regular-17.bdf")
 
+# Creating the UI buttons
 new_game_button = Button(x=42, y=10, width=110, height=35,
                     fill_color=WHITE, label_color=PINK, outline_color=BLACK, selected_fill=PINK, selected_label=WHITE,
                     style=Button.SHADOWROUNDRECT, label="New Game", label_font=font)
@@ -95,7 +96,6 @@ bomb_number_box = RoundRect(266, 15, 35, 28, 7, fill=WHITE, outline=BLACK, strok
 bomb_number_text_in = Label(font=font, x=273, y=28, text='{:2d}'.format(NUMBEROFBOMBS), color=PINK, background_color=None)
 
 bomb_number_text_out = Label(font=font, x=170, y=28, text="Bombs left:", color=BLACK, background_color=None)
-
 
 # Creating a rounded rectangle frame for the game board
 game_board_frame = RoundRect(INGROUPXOFFSET-8, INGROUPYOFFSET-8,
@@ -123,18 +123,17 @@ game_over_frame.hidden = True
 game_over_text = Label(font=font, x=140, y=160, text="Congratulations! You win!", color=PINK, background_color=None)
 game_over_text.hidden = True
 
-# dot to test the touch screen
+# Dot to test the touch screen
 if DEBUGENABLED:
     test_circle = vectorio.Circle(pixel_shader=theme_palette,
                                     color_index = 2, radius=3,
                                     x=-10,  # negative values so it starts off the edge of the display
                                     y=-10)  # won't get shown until the location moves onto the display
 
-
 # Creating a group to display the UI on the screen
 minesweeper_group = displayio.Group()
 
-# Adding all the defined elements in the order they should appear
+# Adding all the defined elements, in the order they should appear
 minesweeper_group.append(background)
 minesweeper_group.append(game_board_frame)
 minesweeper_group.append(game_board)
@@ -162,7 +161,6 @@ def print_bomb_list():
                 bomb_string = bomb_string + "  " + "*"
             else:
                 bomb_string = bomb_string + "  " + str(bomb_list[x][y])
-
         print(bomb_string)
     gc.collect()
 
@@ -173,14 +171,14 @@ def get_number_bomb_neighbours(param_x, param_y):
     for x in range( max(0, param_x-1), min(HTILES-1, param_x+1) + 1 ):
         for y in range( max(0, param_y-1), min(VTILES-1, param_y+1) + 1 ):
             if (x == param_x) and (y == param_y):
-                continue
+                continue  # ignore current location
             if bomb_list[x][y] == BOMB:
                 num_neighbouring_bombs += 1
 
     return num_neighbouring_bombs
 
 # Starting a new game, initializing all default values, and generating a new game board
-# This function should be run when the file is first loaded + when "New Game" button is pressed
+# This function should be run when the file is first loaded, and when "New Game" button is pressed
 def start_new_game():
     # Hide the game board overlay
     game_over_frame.hidden = True
@@ -200,8 +198,8 @@ def start_new_game():
         for y in range(VTILES):
             game_board[x,y] = NEWTILE
 
-    # Creating the data game board as a matrix
-    # Keeping same x-y orientation as the display matrix, for ease of use
+    # Creating the game data matrix
+    # Keeping same x-y orientation as the UI matrix, for ease of use
     global bomb_list
     bomb_list = []
     for _ in range(HTILES):
@@ -213,11 +211,11 @@ def start_new_game():
     # Planting the bombs
     bombs_planted = 0
     while (bombs_planted < NUMBEROFBOMBS):
-        # choose a random location
+        # Choosing a random location
         random_x = randint(0, HTILES-1)
         random_y = randint(0, VTILES-1)
         if bomb_list[random_x][random_y] == BOMB:
-            # location already contains a bomb
+            # Location already contains a bomb, ignore it
             continue
         bomb_list[random_x][random_y] = BOMB
         bombs_planted += 1
@@ -232,23 +230,24 @@ def start_new_game():
     if DEBUGENABLED:
         print_bomb_list()
 
-    # Already dug locations on the board
-    global locations_dug
-    locations_dug = set()
+    # Already explored locations on the board, initialize as empty set
+    global locations_explored
+    locations_explored = set()
 
     gc.collect()
 
 # Function called to dig at the selected location - determined by the touch screen reading
-def dig_board(param_x, param_y):
+def explore_location(param_x, param_y):
     global flagged_bombs
+
     # Adding current location to the set, marking it as already explored
-    locations_dug.add((param_x, param_y))
+    locations_explored.add((param_x, param_y))
 
     # If current location is a bomb, bad luck, lost the game
     if bomb_list[param_x][param_y] == BOMB:
         return False
 
-    # change the game board to the correct tile
+    # Changing the game board to the correct tile
     game_board[param_x, param_y] = bomb_list[param_x][param_y]
 
     # If current location is a number > 0, that means there are neighbouring bombs, show the number
@@ -262,13 +261,13 @@ def dig_board(param_x, param_y):
         (pop_x, pop_y) = dig_stack.pop()
         for x in range( max(0, pop_x-1), min(HTILES-1, pop_x+1) + 1 ):
             for y in range( max(0, pop_y-1), min(VTILES-1, pop_y+1) + 1 ):
-                if (x, y) in locations_dug:  # already explored location, ignore
+                if (x, y) in locations_explored:  # already explored location, ignore
                     continue
                 if bomb_list[x][y] == BOMB:  # bomb in unexplored location, ignore
                     continue
 
                 # Add location to the set of explored ones
-                locations_dug.add((x, y))
+                locations_explored.add((x, y))
 
                 # If exploring reveals a tile falsely flagged, update de flagged tiles counter
                 if game_board[x, y] == FLAG:
@@ -287,21 +286,27 @@ def dig_board(param_x, param_y):
     gc.collect()
     return True
 
+# Function to be called when game is over, either won or lost
 def game_over(param_x, param_y, win):
     if win == True:
-        # Game is won, show win overlay
+        # Game is won, change the text on the overlay to win
         game_over_text.color = PINK
         game_over_text.text="Congratulations! You win!!"
 
     else:
-        # Game is lost, show the board, and the exploded bomb, then the lose overlay
+        # Game is lost, show the board, the potential falsely flagged bombs, and the exploded bomb
+        # The text on the overlay is changed to lose
         for x in range(HTILES):
             for y in range(VTILES):
-                game_board[x,y] = bomb_list[x][y]
+                # If the tile was wrongly flagged, show the NOTABOMB icon
+                if (game_board[x,y] == FLAG) and (bomb_list[x][y] != BOMB):
+                    game_board[x,y] = NOTABOMB
+                else:
+                    game_board[x,y] = bomb_list[x][y]
         game_board[param_x, param_y] = EXPLODED
         game_over_text.color = RED
         game_over_text.text="   GAME OVER!  You lose!  "
-
+    # Display the overlay, either win or loss
     game_over_frame.hidden = False
     game_over_text.hidden = False
 
@@ -313,7 +318,7 @@ start_new_game()
 
 while True:
     point = touch_screen.touch_point
-    time.sleep(.2) # debounce
+    time.sleep(.2) # touch debounce
 
     if point is not None:
         if DEBUGENABLED:
@@ -356,16 +361,16 @@ while True:
                     game_board[xx,yy] = FLAG
                     bomb_number_text_in.text = '{:2d}'.format(NUMBEROFBOMBS-flagged_bombs)
                 elif game_board[xx,yy] == FLAG:
-                    # Second tile touch triggers the dig action
+                    # Second tile touch triggers the explore action on that location
                     flagged_bombs -= 1
                     bomb_number_text_in.text = '{:2d}'.format(NUMBEROFBOMBS-flagged_bombs)
-                    is_game_running = dig_board(xx, yy)
+                    is_game_running = explore_location(xx, yy)
 
-                if not is_game_running:
-                    # The game is lost, reveal the board
+                if not is_game_running: # Exploration returned false, a bomb has been hit
+                    # LOSE CONDITION:  The game is lost, reveal the board
                     game_over(xx, yy, False)
-                elif len(locations_dug) == (HTILES*VTILES - NUMBEROFBOMBS):
-                    # All locations have been explored or flagged as bombs - incorrect flagging should have been revealed by now
+                elif len(locations_explored) == (HTILES*VTILES - NUMBEROFBOMBS):
+                    # WIN CONDITION: All non-bomb locations have been explored, the game is won
                     is_game_running = False
                     game_over(xx, yy, True)
 
@@ -374,8 +379,8 @@ while True:
                 print(xx,yy)
                 # test_circle.x = -10
                 # test_circle.y = -10
-                # print(locations_dug)
-                print(len(locations_dug))
+                # print(locations_explored)
+                print(len(locations_explored))
 
 
 
