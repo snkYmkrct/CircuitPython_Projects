@@ -8,6 +8,7 @@ Libraries from [adafruit-circuitpython-bundle-7.x-mpy-20220723.zip](https://circ
 
 Project case .stl files from [PyPortal Retro Cases](https://learn.adafruit.com/pyportal-retro-compys/)
 
-Idea, and source of the SpriteSheet bmp: [Adafruit Guide CircuitPython Minesweeper Game](https://learn.adafruit.com/circuitpython-pyportal-minesweeper-game)
+Idea, and source for the SpriteSheet bmp: [Adafruit Guide CircuitPython Minesweeper Game](https://learn.adafruit.com/circuitpython-pyportal-minesweeper-game)
+
 
 <img src='https://github.com/snkYmkrct/CircuitPython_Projects/blob/main/MineSweeper%20on%20PyPortal/Images/Minesweeper.png' alt='minesweeper' height='400'> 
