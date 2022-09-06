@@ -12,3 +12,9 @@ Idea, and source for the SpriteSheet bmp: [Adafruit Guide CircuitPython Mineswee
 
 
 <img src='https://github.com/snkYmkrct/CircuitPython_Projects/blob/main/MineSweeper%20on%20PyPortal/Images/Minesweeper.png' alt='minesweeper' height='400'> 
+
+<img src='https://github.com/snkYmkrct/CircuitPython_Projects/blob/main/MineSweeper%20on%20PyPortal/Images/Titano__.png' alt='minesweeper' height='400'> 
+
+<img src='https://github.com/snkYmkrct/CircuitPython_Projects/blob/main/MineSweeper%20on%20PyPortal/Images/Titano_.png' alt='minesweeper' height='400'> 
+
+<img src='https://github.com/snkYmkrct/CircuitPython_Projects/blob/main/MineSweeper%20on%20PyPortal/Images/Titano.png' alt='minesweeper' height='400'> 
